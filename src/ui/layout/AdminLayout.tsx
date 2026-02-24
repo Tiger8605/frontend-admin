@@ -1,0 +1,109 @@
+"use client";
+
+import React from "react";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { colors } from "../../common/Colors";
+import { FiGrid, FiList, FiBarChart2, FiLogOut } from "react-icons/fi";
+
+export default function AdminLayout() {
+  const nav = useNavigate();
+  const location = useLocation();
+
+  const navItems = [
+    { label: "Dashboard", icon: <FiGrid />, path: "/admin/dashboard" },
+    { label: "Analytics", icon: <FiBarChart2 />, path: "/admin/analytics" },
+    { label: "Menu", icon: <FiList />, path: "/admin/menu" },
+    { label: "Add Menu category ", icon: <FiList />, path: "/admin/menu-category" },
+    { label: "Add Menu item ", icon: <FiList />, path: "/admin/menu-item" },
+
+
+
+  ];
+
+  return (
+    <div
+      className="min-h-screen"
+      style={{ backgroundColor: colors.background }}
+    >
+      <div className="flex min-h-screen">
+        {/* Sidebar */}
+        <aside
+          className="w-[260px] hidden md:flex flex-col border-r"
+          style={{ backgroundColor: colors.white, borderColor: colors.border }}
+        >
+          <div className="p-5 border-b" style={{ borderColor: colors.border }}>
+            <h1 className="text-lg font-extrabold" style={{ color: colors.textPrimary }}>
+              Restaurant Admin
+            </h1>
+            <p className="text-xs font-semibold mt-1" style={{ color: colors.textMuted }}>
+              Manage menu • orders • analytics
+            </p>
+          </div>
+
+          <div className="p-3 flex-1 space-y-2">
+            {navItems.map((it) => {
+              const active = location.pathname === it.path;
+              return (
+                <button
+                  key={it.path}
+                  onClick={() => nav(it.path)}
+                  className="w-full flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold transition"
+                  style={{
+                    backgroundColor: active ? colors.primary : colors.cardSoft,
+                    color: active ? colors.white : colors.textPrimary,
+                    border: `1px solid ${colors.border}`,
+                  }}
+                >
+                  {it.icon}
+                  {it.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="p-4 border-t" style={{ borderColor: colors.border }}>
+            <button
+              onClick={() => nav("/admin/login")}
+              className="w-full flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-extrabold"
+              style={{ backgroundColor: colors.neutral[900], color: colors.white }}
+            >
+              <FiLogOut />
+              Logout
+            </button>
+          </div>
+        </aside>
+
+        {/* Main */}
+        <div className="flex-1">
+          {/* Topbar */}
+          <header
+            className="sticky top-0 z-20 border-b"
+            style={{ backgroundColor: colors.white, borderColor: colors.border }}
+          >
+            <div className="mx-auto w-full max-w-6xl px-4 py-4 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold" style={{ color: colors.textMuted }}>
+                  Admin Panel
+                </p>
+                <h2 className="text-lg font-extrabold" style={{ color: colors.textPrimary }}>
+                  Overview
+                </h2>
+              </div>
+
+              <div
+                className="rounded-2xl px-4 py-2 text-sm font-bold"
+                style={{ backgroundColor: colors.cardSoft, color: colors.textSecondary, border: `1px solid ${colors.border}` }}
+              >
+                Owner
+              </div>
+            </div>
+          </header>
+
+          <main className="mx-auto w-full max-w-6xl px-4 py-6">
+            <Outlet />
+          </main>
+        </div>
+      </div>
+    </div>
+  );
+}
