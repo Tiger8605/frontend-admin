@@ -12,9 +12,9 @@ export default function AdminLayout() {
   const navItems = [
     { label: "Dashboard", icon: <FiGrid />, path: "/admin/dashboard" },
     { label: "Analytics", icon: <FiBarChart2 />, path: "/admin/analytics" },
-    { label: "Menu", icon: <FiList />, path: "/admin/menu" },
-    { label: "Add Menu category ", icon: <FiList />, path: "/admin/menu-category" },
-    { label: "Add Menu item ", icon: <FiList />, path: "/admin/menu-item" },
+    { label: "Menu Management", icon: <FiList />, path: "/admin/menu" },
+    { label: "Table Management ", icon: <FiList />, path: "/admin/tables" },
+    { label: "Order Management ", icon: <FiList />, path: "/admin/Orders" },
 
 
 
