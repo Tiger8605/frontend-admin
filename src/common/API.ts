@@ -25,6 +25,14 @@ export const URL_PATH = {
   /* ---------- ADMIN AUTH ---------- */
   AdminRegister: "/admin/register",
   AdminLogin: "/admin/login",
+
+  /* ---------- Tables ---------- */
+  Tables: "/tables",
+  CreateTable: "/tables/create",
+  UpdateTable: (id: string) => `/tables/update/${id}`,
+  DeleteTable: (id: string) => `/tables/delete/${id}`,
+
+  
 } as const;
 
 

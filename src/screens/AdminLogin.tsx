@@ -4,20 +4,41 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { colors } from "../common/Colors";
 import { Button } from "../ui/components/Button";
+import API, { URL_PATH } from "../common/API";
 
 export default function AdminLogin() {
   const nav = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleLogin = (e: React.FormEvent) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
 
-    // Later replace with real API
-    // Example:
-    // await axios.post("/admin/login", { email, password });
+    setError("");
+    setLoading(true);
 
-    nav("/admin/dashboard");
+    try {
+      const payload = { email, password };
+
+      const data = await API("POST", URL_PATH.AdminLogin, payload);
+
+      if (data?.token) localStorage.setItem("adminToken", data.token);
+      if (data?.admin) localStorage.setItem("admin_profile", JSON.stringify(data.admin));
+
+      nav("/admin/dashboard");
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Login failed";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -35,21 +56,27 @@ export default function AdminLogin() {
           boxShadow: colors.shadow,
         }}
       >
-        <h1
-          className="text-xl font-extrabold"
-          style={{ color: colors.textPrimary }}
-        >
+        <h1 className="text-xl font-extrabold" style={{ color: colors.textPrimary }}>
           Admin Login
         </h1>
 
-        <p
-          className="mt-2 text-sm"
-          style={{ color: colors.textMuted }}
-        >
+        <p className="mt-2 text-sm" style={{ color: colors.textMuted }}>
           Login to manage menu, orders and analytics.
         </p>
 
-        {/* FORM START */}
+        {error ? (
+          <div
+            className="mt-4 rounded-2xl border px-4 py-3 text-sm"
+            style={{
+              borderColor: `${colors.danger || "#EF4444"}40`,
+              backgroundColor: `${colors.danger || "#EF4444"}10`,
+              color: colors.textPrimary,
+            }}
+          >
+            {error}
+          </div>
+        ) : null}
+
         <form onSubmit={handleLogin} className="mt-6 space-y-4">
           <input
             value={email}
@@ -79,16 +106,12 @@ export default function AdminLogin() {
             }}
           />
 
-          <Button type="submit">
-            Login
+          <Button type="submit" disabled={loading}>
+            {loading ? "Logging in..." : "Login"}
           </Button>
         </form>
 
-        {/* Optional Register Link */}
-        <div
-          className="mt-4 text-center text-sm"
-          style={{ color: colors.textMuted }}
-        >
+        <div className="mt-4 text-center text-sm" style={{ color: colors.textMuted }}>
           New restaurant?{" "}
           <button
             onClick={() => nav("/admin/register")}
