@@ -15,32 +15,35 @@ export default function AdminLayout() {
     { label: "Menu Management", icon: <FiList />, path: "/admin/menu" },
     { label: "Table Management ", icon: <FiList />, path: "/admin/tables" },
     { label: "Order Management ", icon: <FiList />, path: "/admin/Orders" },
-
-
-
   ];
 
   return (
     <div
-      className="min-h-screen"
+      className="h-screen overflow-hidden"
       style={{ backgroundColor: colors.background }}
     >
-      <div className="flex min-h-screen">
+      <div className="flex max-w-7xl mx-auto h-full py-8">
         {/* Sidebar */}
         <aside
-          className="w-[260px] hidden md:flex flex-col border-r"
+          className="hidden md:flex w-[240px] shrink-0 flex-col rounded-3xl border-r"
           style={{ backgroundColor: colors.white, borderColor: colors.border }}
         >
           <div className="p-5 border-b" style={{ borderColor: colors.border }}>
-            <h1 className="text-lg font-extrabold" style={{ color: colors.textPrimary }}>
+            <h1
+              className="text-lg font-extrabold"
+              style={{ color: colors.textPrimary }}
+            >
               Restaurant Admin
             </h1>
-            <p className="text-xs font-semibold mt-1" style={{ color: colors.textMuted }}>
+            <p
+              className="text-xs font-semibold mt-1"
+              style={{ color: colors.textMuted }}
+            >
               Manage menu • orders • analytics
             </p>
           </div>
 
-          <div className="p-3 flex-1 space-y-2">
+          <div className="p-3 space-y-2">
             {navItems.map((it) => {
               const active = location.pathname === it.path;
               return (
@@ -61,11 +64,14 @@ export default function AdminLayout() {
             })}
           </div>
 
-          <div className="p-4 border-t" style={{ borderColor: colors.border }}>
+          <div className="p-4 border-t mt-auto" style={{ borderColor: colors.border }}>
             <button
               onClick={() => nav("/admin/login")}
               className="w-full flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-extrabold"
-              style={{ backgroundColor: colors.neutral[900], color: colors.white }}
+              style={{
+                backgroundColor: colors.neutral[900],
+                color: colors.white,
+              }}
             >
               <FiLogOut />
               Logout
@@ -74,33 +80,48 @@ export default function AdminLayout() {
         </aside>
 
         {/* Main */}
-        <div className="flex-1">
+        <div className="flex-1 flex flex-col">
           {/* Topbar */}
           <header
-            className="sticky top-0 z-20 border-b"
-            style={{ backgroundColor: colors.white, borderColor: colors.border }}
+            className="border-b shrink-0 rounded-3xl"
+            style={{
+              backgroundColor: colors.white,
+              borderColor: colors.border,
+            }}
           >
             <div className="mx-auto w-full max-w-6xl px-4 py-4 flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold" style={{ color: colors.textMuted }}>
+                <p
+                  className="text-xs font-semibold"
+                  style={{ color: colors.textMuted }}
+                >
                   Admin Panel
                 </p>
-                <h2 className="text-lg font-extrabold" style={{ color: colors.textPrimary }}>
+                <h2
+                  className="text-lg font-extrabold"
+                  style={{ color: colors.textPrimary }}
+                >
                   Overview
                 </h2>
               </div>
 
               <div
                 className="rounded-2xl px-4 py-2 text-sm font-bold"
-                style={{ backgroundColor: colors.cardSoft, color: colors.textSecondary, border: `1px solid ${colors.border}` }}
+                style={{
+                  backgroundColor: colors.cardSoft,
+                  color: colors.textSecondary,
+                  border: `1px solid ${colors.border}`,
+                }}
               >
                 Owner
               </div>
             </div>
           </header>
 
-          <main className="mx-auto w-full max-w-6xl px-4 py-6">
-            <Outlet />
+          <main className="flex-1 overflow-y-auto px-4 py-6">
+            <div className="w-full">
+              <Outlet />
+            </div>
           </main>
         </div>
       </div>
