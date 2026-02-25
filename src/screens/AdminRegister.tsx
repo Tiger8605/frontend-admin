@@ -4,6 +4,9 @@ import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { colors } from "../common/Colors";
 import { Button } from "../ui/components/Button";
+import API, { URL_PATH } from "../common/API";
+
+
 
 export default function AdminRegister() {
   const nav = useNavigate();
@@ -19,6 +22,10 @@ export default function AdminRegister() {
   const [city, setCity] = useState("");
   const [address, setAddress] = useState("");
 
+  // UI state
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
   // UI-only validation
   const isValid = useMemo(() => {
     const ownerOk = ownerName.trim().length >= 2;
@@ -29,14 +36,43 @@ export default function AdminRegister() {
     return ownerOk && emailOk && passOk && restOk && phoneOk;
   }, [ownerName, email, password, restaurantName, restaurantPhone]);
 
-  const handleRegister = (e: React.FormEvent) => {
+
+  //----------Handlers-----------
+
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isValid || loading) return;
 
-    // UI-only: later we will call backend API here
-    // Example payload:
-    // { ownerName, email, password, restaurantName, restaurantPhone, city, address }
+    setError("");
+    setLoading(true);
 
-    nav("/admin/dashboard");
+    try {
+      const payload = {
+        name: ownerName,            // backend expects "name"
+        email,
+        password,
+        restroname: restaurantName, // backend expects "restroname"
+        phone: restaurantPhone,     // backend expects "phone"
+        city,
+        address,
+      };
+
+      const data = await API("POST", URL_PATH.AdminRegister, payload);
+
+      // store auth
+      if (data?.token) localStorage.setItem("admin_token", data.token);
+      if (data?.admin) localStorage.setItem("admin_profile", JSON.stringify(data.admin));
+
+      nav("/admin/dashboard");
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Registration failed";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -251,10 +287,10 @@ export default function AdminRegister() {
             </div>
           </div>
 
-          {/* Action */}
+   {/* Action */}
           <div className="pt-2">
-            <Button type="submit" disabled={!isValid}>
-              Create Account
+            <Button type="submit" disabled={!isValid || loading}>
+              {loading ? "Creating..." : "Create Account"}
             </Button>
 
             <p className="mt-4 text-center text-sm" style={{ color: colors.textMuted }}>
