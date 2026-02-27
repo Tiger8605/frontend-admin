@@ -25,6 +25,7 @@ export default function AdminLogin() {
       const payload = { email, password };
 
       const data = await API("POST", URL_PATH.AdminLogin, payload);
+      
 
       if (data?.token) localStorage.setItem("adminToken", data.token);
       if (data?.admin) localStorage.setItem("admin_profile", JSON.stringify(data.admin));

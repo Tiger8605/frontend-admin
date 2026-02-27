@@ -1,26 +1,29 @@
-import React, { useState } from "react";
+import React, { useState,useCallback,useEffect } from "react";
 import { colors } from "../common/Colors";
+import API, { URL_PATH } from "../common/API";
+import { toast, ToastContainer } from "react-toastify";
 
 type Category = {
-  id: number;
+  _id: string;
   name: string;
+  isActive: boolean;
 };
 
 type Dish = {
-  id: number;
+  _id: string;
   name: string;
   description: string;
   price: number;
-  categoryId: number;
   image: string;
-  available: boolean;
+  categoryId: string;
+  isAvailable: boolean;
 };
 
 type DishForm = {
   name: string;
   description: string;
   price: number | "";
-  categoryId: number | "";
+  categoryId: string ;
   image: string;
 };
 
@@ -29,41 +32,21 @@ const defaultImage = "/foodimage.jpg";
 const MenuManagement: React.FC = () => {
   /* -------------------- STATES -------------------- */
 
-  const [categories, setCategories] = useState<Category[]>([
-    { id: 1, name: "Starters" },
-    { id: 2, name: "Main Course" },
-    { id: 3, name: "Beverages" },
-  ]);
+  const [categories, setCategories] = useState<Category[]>([]);
+const [isLoading, setIsLoading] = useState(true);
+const [isSubmitting, setIsSubmitting] = useState(false);
+const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const [dishes, setDishes] = useState<Dish[]>([
-    {
-      id: 1,
-      name: "Paneer Tikka",
-      description: "Delicious grilled paneer cubes",
-      price: 250,
-      categoryId: 1,
-      image: defaultImage,
-      available: true,
-    },
-    {
-      id: 2,
-      name: "Veg Biryani",
-      description: "Aromatic basmati rice with spices",
-      price: 180,
-      categoryId: 2,
-      image: defaultImage,
-      available: false,
-    },
-  ]);
+  const [dishes, setDishes] = useState<Dish[]>([]);
 
-  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [categoryError, setCategoryError] = useState("");
 
-  const [editingDishId, setEditingDishId] = useState<number | null>(null);
+  const [editingDishId, setEditingDishId] = useState<string | null>(null);
 
   /* -------------------- FILTER LOGIC -------------------- */
 
@@ -83,17 +66,27 @@ const MenuManagement: React.FC = () => {
 
   /* -------------------- ACTIONS -------------------- */
 
-  const toggleAvailability = (id: number) => {
-    setDishes((prev) =>
-      prev.map((dish) =>
-        dish.id === id ? { ...dish, available: !dish.available } : dish,
-      ),
-    );
-  };
+  // const toggleAvailability = (id: number) => {
+  //   setDishes((prev) =>
+  //     prev.map((dish) =>
+  //       dish.id === id ? { ...dish, available: !dish.available } : dish,
+  //     ),
+  //   );
+  // };
 
-  const deleteDish = (id: number) => {
-    setDishes((prev) => prev.filter((dish) => dish.id !== id));
-  };
+ const deleteDish = async (id: string) =>{
+  try{
+    await API("DELETE", URL_PATH.DeleteDish(id));
+
+    setDishes((prev)=>
+    prev.filter((dish)=> dish._id !== id)
+  );
+
+  toast.success("Dish deleted successfully");
+} catch {
+  toast.error("Failed to delete dish");
+}
+ };
 
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -105,47 +98,51 @@ const MenuManagement: React.FC = () => {
     image: "",
   });
 
-  const handleSaveDish = () => {
-    if (
-      newDish.name.trim() === "" ||
-      newDish.price === "" ||
-      newDish.categoryId === ""
-    ) {
-      return;
-    }
+  const handleSaveDish = async () => {
+  if (!newDish.name || !newDish.price || !newDish.categoryId) {
+    toast.error("Please fill all required fields");
+    return;
+  }
 
+  try {
     if (editingDishId) {
-      // 🔁 UPDATE EXISTING DISH
-      setDishes((prev) =>
-        prev.map((dish) =>
-          dish.id === editingDishId
-            ? {
-                ...dish,
-                name: newDish.name,
-                description: newDish.description,
-                price: Number(newDish.price),
-                categoryId: Number(newDish.categoryId),
-                image: newDish.image || defaultImage,
-              }
-            : dish,
-        ),
+      // 🔁 UPDATE
+      const res = await API(
+        "PUT",
+        URL_PATH.UpdateDish(editingDishId),
+        {
+          name: newDish.name,
+          description: newDish.description,
+          price: newDish.price,
+          image: newDish.image,
+          categoryId: newDish.categoryId,
+        }
       );
+
+      setDishes((prev) =>
+        prev.map((d) =>
+          d._id === editingDishId ? res.data : d
+        )
+      );
+
+      toast.success("Dish updated successfully");
     } else {
-      // ➕ ADD NEW DISH
-      const dishToAdd: Dish = {
-        id: Date.now(),
+      // ➕ CREATE
+      const res = await API("POST", URL_PATH.Dishes, {
         name: newDish.name,
         description: newDish.description,
-        price: Number(newDish.price),
-        categoryId: Number(newDish.categoryId),
-        image: newDish.image || defaultImage,
-        available: true,
-      };
+        price: newDish.price,
+        image: newDish.image,
+        categoryId: newDish.categoryId,
+      });
 
-      setDishes((prev) => [...prev, dishToAdd]);
+      setDishes((prev) => [res.data, ...prev]);
+
+      toast.success("Dish created successfully");
     }
 
-    // Reset form
+    setIsModalOpen(false);
+    setEditingDishId(null);
     setNewDish({
       name: "",
       description: "",
@@ -153,10 +150,10 @@ const MenuManagement: React.FC = () => {
       categoryId: "",
       image: "",
     });
-
-    setEditingDishId(null);
-    setIsModalOpen(false);
-  };
+  } catch (err: any) {
+    toast.error(err?.response?.data?.message || "Operation failed");
+  }
+};
 
   const handleImageUpload = (file: File) => {
     const reader = new FileReader();
@@ -172,52 +169,86 @@ const MenuManagement: React.FC = () => {
   };
 
   // Add Category:
-  const handleAddCategory = () => {
-    if (newCategoryName.trim() === "") {
-      setCategoryError("Category name is required.");
-      return;
-    }
+  const handleAddCategory = async () => {
+  if (!newCategoryName.trim()) {
+    setCategoryError("Category name is required");
+    return;
+  }
 
-    const alreadyExists = categories.some(
-      (cat) => cat.name.toLowerCase() === newCategoryName.trim().toLowerCase(),
-    );
+  try {
+    setIsSubmitting(true);
 
-    if (alreadyExists) {
-      setCategoryError("Category already exists.");
-      return;
-    }
+    const res = await API("POST", URL_PATH.Categories, {
+      name: newCategoryName,
+    });
 
-    const newCategory: Category = {
-      id: Date.now(),
-      name: newCategoryName.trim(),
-    };
+    setCategories((prev) => [res.data, ...prev]);
 
-    setCategories((prev) => [...prev, newCategory]);
+    toast.success("Category created successfully");
 
     setNewCategoryName("");
     setCategoryError("");
     setIsCategoryModalOpen(false);
-  };
 
-  const handleDeleteCategory = (categoryId: number) => {
-    // Check if category has dishes
-    const hasDishes = dishes.some((dish) => dish.categoryId === categoryId);
+  } catch (err: any) {
+    toast.error(err?.response?.data?.message || "Failed to create category");
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
-    if (hasDishes) {
-      alert("Cannot delete category with existing dishes.");
-      return;
-    }
+  const handleDeleteCategory = async (categoryId: string) => {
+  try {
+    await API("DELETE", URL_PATH.DeleteCategory(categoryId));
 
-    setCategories((prev) => prev.filter((cat) => cat.id !== categoryId));
+    setCategories((prev) =>
+      prev.filter((cat) => cat._id !== categoryId)
+    );
 
-    // Reset filter if deleted category was selected
-    if (selectedCategory === categoryId) {
-      setSelectedCategory(null);
-    }
-  };
+    toast.success("Category deleted");
+    setSelectedCategory(null);
+
+  } catch {
+    toast.error("Failed to delete category");
+  }
+};
+
+
+///////////////////////////////////////////////////////////////////////////
+
+// GET api to fetch Categories
+const fetchCategories = React.useCallback(async () => {
+  try {
+    setIsLoading(true);
+
+    const res = await API("GET", URL_PATH.GetCategories);
+
+    setCategories(res?.data || []);
+  } catch (err: any) {
+    toast.error(err?.message || "Failed to fetch categories");
+  } finally {
+    setIsLoading(false);
+  }
+}, []);
+
+const fetchDishes = useCallback(async () => {
+  try {
+    const res = await API("GET", URL_PATH.GetDishes);
+    setDishes(res?.data || []);
+  } catch (err: any) {
+    toast.error("Failed to fetch dishes");
+  }
+}, []);
+
+useEffect(() => {
+  fetchCategories();
+  fetchDishes();
+}, [fetchCategories, fetchDishes]);
+
   /* -------------------- UI -------------------- */
 
   return (
+    <><ToastContainer position="top-center" autoClose={3000} />
     <div
       className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-6"
       style={{ backgroundColor: colors.background }}
@@ -301,16 +332,16 @@ const MenuManagement: React.FC = () => {
 
         {categories.map((cat) => (
           <button
-            key={cat.id}
-            onClick={() => setSelectedCategory(cat.id)}
+            key={cat._id}
+            onClick={() => setSelectedCategory(cat._id)}
             className="px-4 py-1 rounded-full text-sm"
             style={{
               backgroundColor:
-                selectedCategory === cat.id
+                selectedCategory === cat._id
                   ? colors.primaryLight
                   : colors.cardSoft,
               color:
-                selectedCategory === cat.id
+                selectedCategory === cat._id
                   ? colors.white
                   : colors.textSecondary,
             }}
@@ -339,7 +370,7 @@ const MenuManagement: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
         {filteredDishes.map((dish) => (
           <div
-            key={dish.id}
+            key={dish._id}
             className="rounded-xl p-5 transition hover:shadow-lg"
             style={{
               backgroundColor: colors.card,
@@ -368,7 +399,7 @@ const MenuManagement: React.FC = () => {
                 ₹{dish.price}
               </span>
 
-              <button
+              {/* <button
                 onClick={() => toggleAvailability(dish.id)}
                 className="px-3 py-1 text-xs rounded-full"
                 style={{
@@ -377,14 +408,14 @@ const MenuManagement: React.FC = () => {
                 }}
               >
                 {dish.available ? "Available" : "Unavailable"}
-              </button>
+              </button> */}
             </div>
 
             {/* ACTIONS */}
             <div className="flex justify-between mt-4 text-sm">
               <button
                 onClick={() => {
-                  const dishToEdit = dishes.find((d) => d.id === dish.id);
+                  const dishToEdit = dishes.find((d) => d._id === dish._id);
                   if (!dishToEdit) return;
 
                   setNewDish({
@@ -395,7 +426,7 @@ const MenuManagement: React.FC = () => {
                     image: dishToEdit.image,
                   });
 
-                  setEditingDishId(dishToEdit.id);
+                  setEditingDishId(dishToEdit._id);
                   setIsModalOpen(true);
                 }}
                 style={{ color: colors.primary }}
@@ -404,7 +435,7 @@ const MenuManagement: React.FC = () => {
               </button>
 
               <button
-                onClick={() => deleteDish(dish.id)}
+                onClick={() => deleteDish(dish._id)}
                 style={{ color: colors.danger }}
               >
                 Delete
@@ -506,7 +537,7 @@ const MenuManagement: React.FC = () => {
               >
                 <option value="">Select Category</option>
                 {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
+                  <option key={cat._id} value={cat._id}>
                     {cat.name}
                   </option>
                 ))}
@@ -637,6 +668,7 @@ const MenuManagement: React.FC = () => {
         </div>
       )}
     </div>
+    </>
   );
 };
 
