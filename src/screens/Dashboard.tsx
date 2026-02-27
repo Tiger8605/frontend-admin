@@ -40,34 +40,9 @@ type CartItem = {
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 export default function Dashboard() {
-  // ---------------- Mock categories + items (later API) ----------------
 
-  const categories: Category[] = useMemo(
-    () => [
-      { id: "c1", name: "Beverages" },
-      { id: "c2", name: "Breakfast" },
-      { id: "c3", name: "Main Course" },
-      { id: "c4", name: "Starters" },
-      { id: "c5", name: "Roti" },
-      { id: "c6", name: "Rice" },
-    ],
-    [],
-  );
+console.log("ADMIN TOKEN:", localStorage.getItem("admin_token"));
 
-  const items: MenuItem[] = useMemo(
-    () => [
-      { id: "m1", name: "Tea", price: 20, categoryId: "c1" },
-      { id: "m2", name: "Coffee", price: 30, categoryId: "c1" },
-      { id: "m3", name: "Poha", price: 50, categoryId: "c2" },
-      { id: "m4", name: "Idli", price: 60, categoryId: "c2" },
-      { id: "m5", name: "Paneer Butter Masala", price: 220, categoryId: "c3" },
-      { id: "m6", name: "Veg Kolhapuri", price: 190, categoryId: "c3" },
-      { id: "m7", name: "Manchurian", price: 160, categoryId: "c4" },
-      { id: "m8", name: "Tandoori Roti", price: 20, categoryId: "c5" },
-      { id: "m9", name: "Jeera Rice", price: 120, categoryId: "c6" },
-    ],
-    [],
-  );
 
   // ---------------- UI state ----------------
 
@@ -75,9 +50,12 @@ export default function Dashboard() {
   const [tablesLoading, setTablesLoading] = useState(false);
 
   const [activeTableId, setActiveTableId] = useState<string>("");
-  const [activeCategoryId, setActiveCategoryId] = useState<string>(
-    categories[0]?.id || "",
-  );
+ 
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [activeCategoryId, setActiveCategoryId] = useState<string>("");
+
+  const [items, setItems] = useState<MenuItem[]>([]);
+  const [menuLoading, setMenuLoading] = useState(false);
 
   const [search, setSearch] = useState("");
   // const [cart, setCart] = useState<CartItem[]>([]);
@@ -128,27 +106,90 @@ export default function Dashboard() {
   };
   
 
-  // ---------------- Load active order for selected table ----------------
-  const loadActiveOrder = async (tableId: string) => {
-    try {
-      const res = await axiosInstance.get(`/api/orders/active/${tableId}`);
-      const order = res.data?.data;
+    // ---------------- Categories Dishes API ----------------
 
-      // ✅ backend order items should be same shape as cart (item + qty)
-      const loadedCart: CartItem[] = order?.items || [];
+const fetchCategories = async () => {
+  try {
+    const res = await axiosInstance.get("/api/menu/category");
 
-      setCartByTable((prev) => ({
-        ...prev,
-        [tableId]: loadedCart,
-      }));
-    } catch (err: any) {
-      alert(
-        err?.response?.data?.message ||
-          err?.message ||
-          "Failed to load active order",
-      );
+    const data = res.data?.data || [];
+
+    const mapped: Category[] = data.map((c: any) => ({
+      id: c._id,
+      name: c.name,
+    }));
+
+    setCategories(mapped);
+
+    // auto select first category
+    if (mapped.length > 0 && !activeCategoryId) {
+      setActiveCategoryId(mapped[0].id);
     }
-  };
+  } catch (err: any) {
+    alert(
+      err?.response?.data?.message ||
+        err?.message ||
+        "Failed to load categories",
+    );
+  }
+};
+
+const fetchDishes = async () => {
+  setMenuLoading(true);
+  try {
+    const res = await axiosInstance.get("/api/menu/dish");
+
+    const data = res.data?.data || [];
+
+    const mapped: MenuItem[] = data
+      .filter((d: any) => d.isAvailable !== false)
+      .map((d: any) => ({
+        id: d._id,
+        name: d.name,
+        price: d.price,
+        categoryId: d.categoryId?._id || d.categoryId,
+      }));
+
+    setItems(mapped);
+  } catch (err: any) {
+    alert(
+      err?.response?.data?.message ||
+        err?.message ||
+        "Failed to load dishes",
+    );
+  } finally {
+    setMenuLoading(false);
+  }
+};
+
+  // ---------------- Load active order for selected table ----------------
+const loadActiveOrder = async (tableId: string) => {
+  try {
+    const res = await axiosInstance.get(`/api/orders/active/${tableId}`);
+    const order = res.data?.data;
+
+    const loadedCart: CartItem[] = (order?.items || []).map((i: any) => ({
+      item: {
+        id: i.dish?._id,
+        name: i.dish?.name,
+        price: i.dish?.price ?? 0,
+        categoryId: i.dish?.categoryId?._id || i.dish?.categoryId,
+      },
+      qty: i.qty ?? 1,
+    }));
+
+    setCartByTable((prev) => ({
+      ...prev,
+      [tableId]: loadedCart,
+    }));
+  } catch (err: any) {
+    alert(
+      err?.response?.data?.message ||
+        err?.message ||
+        "Failed to load active order",
+    );
+  }
+};
 
   // ✅ load tables once on page mount
   // ✅ when table changes -> load its active order
@@ -243,10 +284,12 @@ export default function Dashboard() {
     }
   };
 
-//   // ✅ load tables once on page mount
-// useEffect(() => {
-//   fetchTables();
-// }, []);
+  // ✅ load tables once on page mount
+useEffect(() => {
+  fetchTables();
+   fetchCategories();
+  fetchDishes();
+}, []);
 
   // ---------------- UI ----------------
 

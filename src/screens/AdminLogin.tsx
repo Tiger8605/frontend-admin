@@ -1,11 +1,10 @@
-"use client";
 
 import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { colors } from "../common/Colors";
 import { Button } from "../ui/components/Button";
 import API, { URL_PATH } from "../common/API";
-import { FiShield, FiEye, FiEyeOff } from "react-icons/fi";
+import {  FiEye, FiEyeOff } from "react-icons/fi";
 
 
 // Optional Lottie:
@@ -45,7 +44,7 @@ export default function AdminLogin() {
       if (data?.token) {
         // if remember off, you can store in sessionStorage instead
         const store = remember ? localStorage : sessionStorage;
-        store.setItem("adminToken", data.token);
+        store.setItem("admin_token", data.token);
       }
 
       if (data?.admin) {
@@ -103,7 +102,7 @@ export default function AdminLogin() {
                 </p>
               </div>
 
-              {/* Lottie slot (optional) */}
+              {/* Lottie slot  */}
               <div
                 className="hidden sm:flex w-20 h-20 rounded-2xl border items-center justify-center overflow-hidden"
                 style={{
@@ -111,7 +110,7 @@ export default function AdminLogin() {
                   backgroundColor: colors.cardSoft,
                 }}
               >
-                <Lottie animationData={adminAnim} loop autoplay />
+                <Lottie animationData={adminAnim} loop />
                 <span className="text-[10px]" style={{ color: colors.textMuted }}>
                   Lottie
                 </span>
@@ -198,14 +197,6 @@ export default function AdminLogin() {
                 </div>
 
                 <div className="flex items-center justify-between pt-1">
-                  <label className="flex items-center gap-2 text-xs" style={{ color: colors.textMuted }}>
-                    <input
-                      type="checkbox"
-                      checked={remember}
-                      onChange={(e) => setRemember(e.target.checked)}
-                    />
-                    Keep me signed in
-                  </label>
 
                   <button
                     type="button"

@@ -12,7 +12,6 @@ export const BASE_URL = "http://localhost:5000/api";
 ========================================= */
 const apiClient = axios.create({
   baseURL: BASE_URL,
-  withCredentials: true,
   headers: {
     Accept: "application/json",
     "Content-Type": "application/json",
@@ -20,11 +19,13 @@ const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem("adminToken");
+const token =
+  localStorage.getItem("admin_token") ||
+  sessionStorage.getItem("admin_token");
 
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+if (token) {
+  config.headers.Authorization = `Bearer ${token}`;
+}
 
   return config;
 });
@@ -37,12 +38,13 @@ export const URL_PATH = {
   AdminRegister: "/admin/register",
   AdminLogin: "/admin/login",
 
-  /* ---------- Tables ---------- */
-  Tables: "/tables",
-  CreateTable: "/tables/create",
-  UpdateTable: (id: string) => `/tables/update/${id}`,
-  DeleteTable: (id: string) => `/tables/delete/${id}`,
-  getTables: "/"
+ /* ---------- TABLES ---------- */
+Tables: "/tables",
+GetTables: "/tables",
+CreateTable: "/tables",
+UpdateTable: (id: string) => `/tables/${id}`,
+DeleteTable: (id: string) => `/tables/${id}`,
+  // getTables: "/",
 
 
   /* ---------- MENU ---------- */
@@ -50,8 +52,8 @@ Categories: "/menu/category",
 GetCategories: "/menu/category",
 DeleteCategory: (id: string) => `/menu/category/${id}`,
 
-Dishes: "menu/dish",
-GetDishes:"menu/dish",
+Dishes: "/menu/dish",
+GetDishes:"/menu/dish",
 UpdateDish: (id: string) => `/menu/dish/${id}`,
 DeleteDish: (id: string) => `/menu/dish/${id}`,
 

@@ -1,11 +1,14 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import axios from "axios";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { colors } from "../common/Colors";
+import API, { URL_PATH } from "../common/API";
 import { FiPlus, FiDownload, FiTrash2 } from "react-icons/fi";
 import { Button } from "../ui/components/Button";
 import { QRCodeCanvas } from "qrcode.react";
+import { toast, ToastContainer } from "react-toastify";
+
+/* ==================== TYPES ==================== */
 
 type TabKey = "tableNumber" | "qrCode" | "qrData" | "actions";
 
@@ -30,97 +33,122 @@ const TABS: { key: TabKey; label: string }[] = [
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
+/* ==================== MAIN COMPONENT ==================== */
+
 export default function TableManagement() {
+  /* ==================== STATE ==================== */
+
   const [activeTab, setActiveTab] = useState<TabKey>("tableNumber");
   const [tables, setTables] = useState<TableItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [creating, setCreating] = useState(false);
 
-  // ✅ If you store token in localStorage, add it here.
-  // If you use cookies, set withCredentials: true and configure CORS.
-  const axiosInstance = useMemo(() => {
-    const token = localStorage.getItem("adminToken"); // change key if your project uses different
-    return axios.create({
-      baseURL: API_BASE,
-      withCredentials: true,
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    });
-  }, []);
+  const [isTableModalOpen, setIsTableModalOpen] = useState(false);
+  const [newTableNumber, setNewTableNumber] = useState("");
+  const [tableError, setTableError] = useState("");
+
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [tableToDelete, setTableToDelete] = useState<TableItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  /* ==================== HELPERS ==================== */
 
   const mapApiToUI = (t: ApiTable): TableItem => ({
     id: t._id,
     tableNo: t.tableNumber,
-    url:
-      t.qrValue ||
-      `${window.location.origin}/menu?tableId=${t._id}`, // fallback if backend doesn't send qrValue
+    url: t.qrValue || `${window.location.origin}/menu?tableId=${t._id}`,
   });
 
-  const fetchTables = async () => {
-    setLoading(true);
+  /* ==================== FETCH ==================== */
+
+  const fetchTables = useCallback(async () => {
     try {
-      const res = await axiosInstance.get("/api/tables");
-      const data: ApiTable[] = res.data?.data || [];
+      setIsLoading(true);
+
+      const token =
+        localStorage.getItem("admin_token") ||
+        sessionStorage.getItem("admin=_token");
+
+      const res = await API("GET", URL_PATH.GetTables);
+
+      const data: ApiTable[] = res?.data || [];
       setTables(data.map(mapApiToUI));
     } catch (err: any) {
-      alert(err?.response?.data?.message || err.message || "Failed to load tables");
+      toast.error(err?.response?.data?.message || "Failed to fetch tables");
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
-  };
+  }, []);
+
+const deleteTable = useCallback(
+  async (tableId: string) => {
+    try {
+      setDeleting(true);
+
+      await API("DELETE", URL_PATH.DeleteTable(tableId));
+
+      toast.success("Table deleted successfully");
+
+      // 🔁 Refresh list after delete
+      await fetchTables();
+    } catch (err: any) {
+      toast.error(
+        err?.response?.data?.message || "Failed to delete table"
+      );
+    } finally {
+      setDeleting(false);
+      setIsDeleteModalOpen(false);
+      setTableToDelete(null);
+    }
+  },
+  [fetchTables]
+);
 
   useEffect(() => {
     fetchTables();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchTables,]);
+  /* ==================== ACTIONS ==================== */
 
 const handleCreate = async () => {
-  // ✅ Ask user for table number (optional)
-  // If user cancels -> null
-  // If user leaves empty -> auto create
-  const input = window.prompt("Enter table number (leave blank for auto):", "");
-
-  // If user clicked "Cancel"
-  if (input === null) return;
-
-  setCreating(true);
-
   try {
-    // ✅ If input is empty -> send {}
-    // ✅ If input has value -> send { tableNumber: input }
-    const payload = input.trim() ? { tableNumber: input.trim() } : {};
+    setCreating(true);
+    setTableError("");
 
-    const res = await axiosInstance.post("/api/tables", payload);
-    const created: ApiTable = res.data?.data;
+    const payload = newTableNumber.trim()
+      ? { tableNumber: newTableNumber.trim() }
+      : {};
 
-    if (!created?._id) {
-      await fetchTables();
-      return;
-    }
+    await API("POST", URL_PATH.Tables, payload);
 
-    setTables((prev) => [mapApiToUI(created), ...prev]);
+    // ✅ IMPORTANT: refetch from backend
+    await fetchTables();
+
+    setNewTableNumber("");
+    setIsTableModalOpen(false);
+
+    toast.success("Table created successfully");
   } catch (err: any) {
-    alert(err?.response?.data?.message || err.message || "Failed to create table");
+    setTableError(err?.response?.data?.message || "Failed to create table");
   } finally {
     setCreating(false);
   }
 };
 
-  const handleDelete = async (t: TableItem) => {
-    const ok = window.confirm(`Delete table ${t.tableNo}?`);
-    if (!ok) return;
+  const handleDeleteClick = (table: TableItem) => {
+    setTableToDelete(table);
+    setIsDeleteModalOpen(true);
+  };
 
-    try {
-      await axiosInstance.delete(`/api/tables/${t.id}`);
-      setTables((prev) => prev.filter((x) => x.id !== t.id));
-    } catch (err: any) {
-      alert(err?.response?.data?.message || err.message || "Failed to delete table");
-    }
+  const confirmDelete = () => {
+    if (!tableToDelete) return;
+    deleteTable(tableToDelete.id);
   };
 
   const handleDownload = (t: TableItem) => {
-    // download QR canvas as PNG
-    const canvas = document.getElementById(`qr-${t.id}`) as HTMLCanvasElement | null;
-    if (!canvas) return alert("QR not found");
+    const canvas = document.getElementById(
+      `qr-${t.id}`,
+    ) as HTMLCanvasElement | null;
+    if (!canvas) return toast.error("QR not found");
 
     const pngUrl = canvas.toDataURL("image/png");
     const link = document.createElement("a");
@@ -128,6 +156,8 @@ const handleCreate = async () => {
     link.download = `table-${t.tableNo}-qr.png`;
     link.click();
   };
+
+  /* ==================== UI ==================== */
 
   return (
     <div className="space-y-5">
@@ -140,13 +170,16 @@ const handleCreate = async () => {
           >
             Table Management
           </h1>
-          <p className="text-sm font-semibold mt-1" style={{ color: colors.textMuted }}>
+          <p
+            className="text-sm font-semibold mt-1"
+            style={{ color: colors.textMuted }}
+          >
             Generate QR codes for tables and manage them.
           </p>
         </div>
 
         <Button
-          onClick={handleCreate}
+          onClick={() => setIsTableModalOpen(true)}
           disabled={creating}
           className="h-11 px-4 rounded-2xl font-bold text-sm flex items-center gap-2"
           style={{
@@ -200,8 +233,11 @@ const handleCreate = async () => {
 
         {/* Grid */}
         <div className="p-5">
-          {loading ? (
-            <div className="py-10 text-sm font-semibold" style={{ color: colors.textMuted }}>
+          {isLoading ? (
+            <div
+              className="py-10 text-sm font-semibold"
+              style={{ color: colors.textMuted }}
+            >
               Loading tables...
             </div>
           ) : (
@@ -212,21 +248,153 @@ const handleCreate = async () => {
                   item={t}
                   activeTab={activeTab}
                   onDownload={() => handleDownload(t)}
-                  onDelete={() => handleDelete(t)}
+                  onDelete={() => handleDeleteClick(t)}
                 />
               ))}
             </div>
           )}
 
-          {!loading && tables.length === 0 && (
-            <div className="py-10 text-sm font-semibold" style={{ color: colors.textMuted }}>
+          {!isLoading && tables.length === 0 && (
+            <div
+              className="py-10 text-sm font-semibold"
+              style={{ color: colors.textMuted }}
+            >
               No tables yet. Click “Create New Table”.
             </div>
           )}
         </div>
       </div>
-    </div>
-  );
+
+      {/* ================= CREATE TABLE MODAL ================= */}
+      {isTableModalOpen && (
+        <div className="fixed inset-0 bg-black/30 flex justify-center items-center z-50">
+          <div
+            className="w-full max-w-md mx-4 sm:mx-auto rounded-xl p-6"
+            style={{
+              backgroundColor: colors.card,
+              boxShadow: colors.shadow,
+            }}
+          >
+            <h2
+              className="text-xl font-semibold mb-6"
+              style={{ color: colors.textPrimary }}
+            >
+              Create New Table
+            </h2>
+
+            <input
+              type="text"
+              placeholder="Table Number (optional)"
+              value={newTableNumber}
+              onChange={(e) => setNewTableNumber(e.target.value)}
+              className="w-full px-4 py-2 rounded-lg border"
+              style={{
+                backgroundColor: colors.white,
+                color: colors.textPrimary,
+                borderColor: colors.border,
+              }}
+            />
+
+            {tableError && (
+              <p className="text-sm mt-2" style={{ color: colors.danger }}>
+                {tableError}
+              </p>
+            )}
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setIsTableModalOpen(false);
+                  setTableError("");
+                  setNewTableNumber("");
+                }}
+                className="px-4 py-2 rounded-lg border"
+                style={{
+                  borderColor: colors.border,
+                  color: colors.textSecondary,
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleCreate}
+                disabled={creating}
+                className="px-4 py-2 text-white rounded-lg"
+                style={{
+                  backgroundColor: creating
+                    ? colors.neutral[400]
+                    : colors.primary,
+                }}
+              >
+                {creating ? "Creating..." : "Save Table"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    
+        {/* ================= DELETE CONFIRM MODAL ================= */}
+    {isDeleteModalOpen && tableToDelete && (
+      <div className="fixed inset-0 bg-black/30 flex justify-center items-center z-50">
+        <div
+          className="w-full max-w-md mx-4 sm:mx-auto rounded-xl p-6"
+          style={{
+            backgroundColor: colors.card,
+            boxShadow: colors.shadow,
+          }}
+        >
+          <h2
+            className="text-xl font-semibold mb-4"
+            style={{ color: colors.textPrimary }}
+          >
+            Delete Table
+          </h2>
+
+          <p
+            className="text-sm mb-6"
+            style={{ color: colors.textSecondary }}
+          >
+            Are you sure you want to delete{" "}
+            <span className="font-bold">
+              Table {tableToDelete.tableNo}
+            </span>
+          </p>
+
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={() => {
+                setIsDeleteModalOpen(false);
+                setTableToDelete(null);
+              }}
+              className="px-4 py-2 rounded-lg border"
+              style={{
+                borderColor: colors.border,
+                color: colors.textSecondary,
+              }}
+            >
+              Cancel
+            </button>
+
+            <button
+              onClick={confirmDelete}
+              disabled={deleting}
+              className="px-4 py-2 text-white rounded-lg"
+              style={{
+                backgroundColor: deleting
+                  ? colors.neutral[400]
+                  : colors.danger,
+              }}
+            >
+              {deleting ? "Deleting..." : "Delete"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
+);
+
 }
 
 function TableCard({
@@ -240,7 +408,10 @@ function TableCard({
   onDownload: () => void;
   onDelete: () => void;
 }) {
-  const showQR = activeTab === "qrCode" || activeTab === "tableNumber" || activeTab === "actions";
+  const showQR =
+    activeTab === "qrCode" ||
+    activeTab === "tableNumber" ||
+    activeTab === "actions";
 
   return (
     <div
@@ -254,7 +425,10 @@ function TableCard({
       {/* top */}
       <div className="flex items-start justify-between">
         <div>
-          <div className="text-xs font-bold" style={{ color: colors.textMuted }}>
+          <div
+            className="text-xs font-bold"
+            style={{ color: colors.textMuted }}
+          >
             Table
           </div>
           <div
@@ -269,7 +443,10 @@ function TableCard({
           className="h-10 w-10 rounded-2xl flex items-center justify-center"
           style={{ backgroundColor: `${colors.primary}12` }}
         >
-          <div className="h-5 w-5 rounded-md" style={{ backgroundColor: colors.primary }} />
+          <div
+            className="h-5 w-5 rounded-md"
+            style={{ backgroundColor: colors.primary }}
+          />
         </div>
       </div>
 
@@ -284,7 +461,10 @@ function TableCard({
               color: colors.textSecondary,
             }}
           >
-            <div className="font-extrabold mb-2" style={{ color: colors.textPrimary }}>
+            <div
+              className="font-extrabold mb-2"
+              style={{ color: colors.textPrimary }}
+            >
               QR Data
             </div>
             <div className="break-all font-semibold">{item.url}</div>
@@ -311,7 +491,10 @@ function TableCard({
       </div>
 
       {/* url */}
-      <div className="mt-3 text-center text-xs font-semibold" style={{ color: colors.textMuted }}>
+      <div
+        className="mt-3 text-center text-xs font-semibold"
+        style={{ color: colors.textMuted }}
+      >
         {item.url}
       </div>
 
@@ -342,7 +525,6 @@ function TableCard({
           Delete Table
         </button>
       </div>
-      
     </div>
   );
 }

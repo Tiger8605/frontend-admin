@@ -60,7 +60,7 @@ export default function AdminRegister() {
       const data = await API("POST", URL_PATH.AdminRegister, payload);
 
       // store auth
-      if (data?.token) localStorage.setItem("adminToken", data.token);
+      if (data?.token) localStorage.setItem("admi_token", data.token);
       if (data?.admin) localStorage.setItem("admin_profile", JSON.stringify(data.admin));
 
       nav("/admin/dashboard");
