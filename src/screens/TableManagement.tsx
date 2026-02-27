@@ -342,6 +342,7 @@ function TableCard({
           Delete Table
         </button>
       </div>
+      
     </div>
   );
 }

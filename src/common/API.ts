@@ -42,6 +42,7 @@ export const URL_PATH = {
   CreateTable: "/tables/create",
   UpdateTable: (id: string) => `/tables/update/${id}`,
   DeleteTable: (id: string) => `/tables/delete/${id}`,
+  getTables: "/"
 
 
   /* ---------- MENU ---------- */
