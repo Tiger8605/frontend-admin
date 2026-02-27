@@ -5,6 +5,7 @@ import type { AxiosRequestConfig, AxiosResponse } from "axios";
    🌐 BASE URL
 ========================================= */
 export const BASE_URL = "http://localhost:5000/api";
+// export const BASE_URL = "http://localhost:5001/api";
 
 /* =========================================
    🔥 AXIOS INSTANCE
@@ -16,6 +17,16 @@ const apiClient = axios.create({
     Accept: "application/json",
     "Content-Type": "application/json",
   },
+});
+
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem("adminToken");
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
 });
 
 /* =========================================
@@ -32,7 +43,18 @@ export const URL_PATH = {
   UpdateTable: (id: string) => `/tables/update/${id}`,
   DeleteTable: (id: string) => `/tables/delete/${id}`,
 
-  
+
+  /* ---------- MENU ---------- */
+Categories: "/menu/category",
+GetCategories: "/menu/category",
+DeleteCategory: (id: string) => `/menu/category/${id}`,
+
+Dishes: "menu/dish",
+GetDishes:"menu/dish",
+UpdateDish: (id: string) => `/menu/dish/${id}`,
+DeleteDish: (id: string) => `/menu/dish/${id}`,
+
+
 } as const;
 
 
